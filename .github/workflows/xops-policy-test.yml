@@ -1,0 +1,74 @@
+name: XOps policy gate
+
+# Exercises the maintainer gate with a real Action run, in the configuration
+# that would settle for real — same secrets, same driver, same `mode: self`.
+#
+# What this cannot cover: whether GitHub itself reports CONTRIBUTOR for a
+# genuine third party. That is GitHub's behaviour, not ours, and testing it
+# needs a second account. Everything downstream of the association value —
+# assertMaintainer, the refusal happening before prepare(), and nothing being
+# signed, recorded, or broadcast — is covered here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      association:
+        description: "author_association to present"
+        required: true
+        default: CONTRIBUTOR
+        type: choice
+        options: [CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, NONE, OWNER]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attempt a payout as ${{ inputs.association }}
+        id: xops
+        continue-on-error: true
+        uses: kpj2006/XOps-me@test-harness
+        with:
+          comment: "/send 0x00000000000000000000000000000000CafeBabe 0.01 tUSDC"
+          actor_association: ${{ inputs.association }}
+          ref: refs/pull/1
+          actor: policy-test
+          asset: tUSDC
+          decimals: "6"
+          network: eip155:11155111
+          # Deliberately a real settlement configuration. If the gate leaks,
+          # this moves money — which is exactly what the test must rule out.
+          mode: self
+          rpc_url: ${{ secrets.XOPS_RPC_URL }}
+          chain_id: "11155111"
+          safe: ${{ vars.XOPS_SAFE }}
+          token: ${{ vars.XOPS_TOKEN }}
+          allowance_module: "0xCFbFaC74C26F8647cBDb8c5caf80BB5b32E43134"
+          delegate_key: ${{ secrets.XOPS_DELEGATE_KEY }}
+          pr: 1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: A non-maintainer must be refused
+        if: inputs.association != 'OWNER'
+        run: |
+          echo "STATUS     = ${{ steps.xops.outputs.STATUS }}"
+          echo "ERROR_CODE = ${{ steps.xops.outputs.ERROR_CODE }}"
+          echo "TX_HASH    = ${{ steps.xops.outputs.TX_HASH }}"
+
+          if [ "${{ steps.xops.outputs.STATUS }}" != "error" ]; then
+            echo "::error::the gate leaked — expected error, got '${{ steps.xops.outputs.STATUS }}'"
+            exit 1
+          fi
+          if [ "${{ steps.xops.outputs.ERROR_CODE }}" != "POLICY_DENIED" ]; then
+            echo "::error::expected POLICY_DENIED, got '${{ steps.xops.outputs.ERROR_CODE }}'"
+            exit 1
+          fi
+          if [ -n "${{ steps.xops.outputs.TX_HASH }}" ]; then
+            echo "::error::a transaction hash exists, so something was signed: ${{ steps.xops.outputs.TX_HASH }}"
+            exit 1
+          fi
+          echo "Refused with POLICY_DENIED. No transaction hash, so nothing was signed."
