@@ -67,6 +67,7 @@ jobs:
           # AllowanceModule v0.1.0 on Ethereum Sepolia.
           allowance_module: "0xCFbFaC74C26F8647cBDb8c5caf80BB5b32E43134"
           delegate_key: ${{ secrets.XOPS_DELEGATE_KEY }}
+          explorer_url: https://sepolia.etherscan.io
           pr: ${{ github.event.issue.number }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
