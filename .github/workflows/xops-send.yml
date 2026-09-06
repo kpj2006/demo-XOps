@@ -13,6 +13,18 @@ on:
 
 permissions:
   contents: read
+  # The receipt comment is the idempotency record, so the run has to be able to
+  # read the thread and write back to it.
+  issues: write
+  pull-requests: write
+
+# The receipt check is check-then-act: two runs can both look, both miss, and
+# both pay. Serializing per PR closes that window. Never cancel-in-progress here
+# — killing a run mid-settlement is exactly how a payout happens without its
+# receipt getting written.
+concurrency:
+  group: xops-payout-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   send:
