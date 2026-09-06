@@ -1,0 +1,52 @@
+name: XOps /send
+
+# The payout is decided in the PR conversation, not in this file. A maintainer
+# comments `/send <recipient> <amount> [asset]` and this workflow reads it.
+#
+# Note: issue_comment workflows always run from the DEFAULT branch, never from
+# the PR branch. Editing this file on a branch has no effect until it lands on
+# main — which is also why a fork PR cannot alter the payout logic.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    # Only PR comments, and only ones that look like a command. The action
+    # enforces the real permission check; this is just to avoid burning a
+    # runner on every "lgtm".
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/send')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run XOps from the comment
+        id: xops
+        uses: kpj2006/XOps-me@test-harness
+        with:
+          comment: ${{ github.event.comment.body }}
+          actor_association: ${{ github.event.comment.author_association }}
+          # Anchor the idempotency key to the PR itself. GITHUB_REF on an
+          # issue_comment event points at the default branch, and
+          # refs/pull/N/merge changes on every push — neither identifies "this
+          # payout" stably.
+          ref: refs/pull/${{ github.event.issue.number }}
+          actor: ${{ github.event.comment.user.login }}
+          asset: USDC
+          decimals: "6"
+          network: eip155:11155111
+          mode: dry-run
+
+      - name: Report
+        run: |
+          echo "STATUS          = ${{ steps.xops.outputs.STATUS }}"
+          echo "IDEMPOTENCY_KEY = ${{ steps.xops.outputs.IDEMPOTENCY_KEY }}"
+          echo "ERROR_CODE      = ${{ steps.xops.outputs.ERROR_CODE }}"
+
+          if [ "${{ steps.xops.outputs.STATUS }}" != "dry-run" ]; then
+            echo "::error::expected STATUS=dry-run, got '${{ steps.xops.outputs.STATUS }}'"
+            exit 1
+          fi
+          echo "/send was parsed and the intent was built from the comment."
