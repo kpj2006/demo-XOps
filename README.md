@@ -19,4 +19,4 @@ against real pull requests, before anything is pushed to the AOSSIE repo.
 Nothing is settled and no tokens move. There is no settlement driver yet, so any
 `mode` other than `dry-run` deliberately fails against an empty driver registry.
 
-Status line: harness ready.
+Status line: first live run, triggered by PR.
