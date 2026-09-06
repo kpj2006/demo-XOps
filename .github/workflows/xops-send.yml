@@ -18,12 +18,18 @@ permissions:
   issues: write
   pull-requests: write
 
-# The receipt check is check-then-act: two runs can both look, both miss, and
-# both pay. Serializing per PR closes that window. Never cancel-in-progress here
-# — killing a run mid-settlement is exactly how a payout happens without its
-# receipt getting written.
+# Repo-wide, deliberately NOT per-PR.
+#
+# Two things need serializing and they have different scopes. The receipt check
+# is check-then-act, which is per-payout. But every payout is signed by the same
+# delegate EOA, and an EOA has one account nonce — two runs signing at once both
+# read nonce N and one transaction is silently dropped. The wider scope covers
+# both.
+#
+# cancel-in-progress stays false: killing a run mid-settlement is exactly how a
+# payout happens without its receipt getting written.
 concurrency:
-  group: xops-payout-${{ github.event.issue.number }}
+  group: xops-payout-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
