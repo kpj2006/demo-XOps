@@ -54,20 +54,24 @@ jobs:
           actor: ${{ github.event.comment.user.login }}
           asset: USDC
           decimals: "6"
-          network: eip155:11155111
+
+          # An alias for eip155:11155111. XOps resolves it to the CAIP-2 form
+          # before building the intent, so the idempotency key and the receipt
+          # still carry the canonical spelling — and the chain registry supplies
+          # chain_id, allowance_module and explorer_url from it.
+          network: sepolia
 
           # Settles for real once the delegate key exists, and stays a dry run
           # until then. Real settlement is never implicit — no secret, no payout.
           mode: ${{ secrets.XOPS_DELEGATE_KEY != '' && 'self' || 'dry-run' }}
 
+          # Only what is genuinely this repo's: our endpoint, our Safe, our key.
+          # chain_id, allowance_module and explorer_url are functions of the
+          # network, so they come from XOps rather than being retyped here.
           rpc_url: ${{ secrets.XOPS_RPC_URL }}
-          chain_id: "11155111"
           safe: ${{ vars.XOPS_SAFE }}
           token: ${{ vars.XOPS_TOKEN }}
-          # AllowanceModule v0.1.0 on Ethereum Sepolia.
-          allowance_module: "0xCFbFaC74C26F8647cBDb8c5caf80BB5b32E43134"
           delegate_key: ${{ secrets.XOPS_DELEGATE_KEY }}
-          explorer_url: https://sepolia.etherscan.io
           pr: ${{ github.event.issue.number }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
