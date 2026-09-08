@@ -65,6 +65,18 @@ jobs:
           # until then. Real settlement is never implicit — no secret, no payout.
           mode: ${{ secrets.XOPS_DELEGATE_KEY != '' && 'self' || 'dry-run' }}
 
+          # L1 policy, declared rather than scripted. XOps evaluates it offline
+          # before anything is resolved or signed and prints a per-condition
+          # table, so a refusal says which rule refused and why.
+          #
+          # The kill switch reads a repository variable, so stopping payouts is
+          # a settings change rather than a commit — set XOPS_ENABLED to false
+          # and the next `/send` refuses before it reaches a driver.
+          enabled: ${{ vars.XOPS_ENABLED || 'true' }}
+          allowed_associations: OWNER,MEMBER,COLLABORATOR
+          # A human decimal, in the same units a `/send` is typed in: 5 USDC.
+          max_per_payout: "5"
+
           # Only what is genuinely this repo's: our endpoint, our Safe, our key.
           # chain_id, allowance_module and explorer_url are functions of the
           # network, so they come from XOps rather than being retyped here.
