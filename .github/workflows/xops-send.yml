@@ -88,17 +88,39 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report
+        # Only reached on the paths where the action succeeded. A refusal —
+        # POLICY_DENIED, AMOUNT_CAP_EXCEEDED, a driver error — exits non-zero
+        # from the step above, so the job is already red and this never runs.
+        # That is the intended signal: a refusal writes no receipt comment, so
+        # the job status is the only feedback that reaches the PR.
+        #
+        # Outputs arrive as env vars rather than `${{ }}` interpolated into the
+        # script, so the shell never parses values the action produced.
+        env:
+          STATUS: ${{ steps.xops.outputs.STATUS }}
+          ERROR_CODE: ${{ steps.xops.outputs.ERROR_CODE }}
+          IDEMPOTENCY_KEY: ${{ steps.xops.outputs.IDEMPOTENCY_KEY }}
         run: |
-          echo "STATUS          = ${{ steps.xops.outputs.STATUS }}"
-          echo "IDEMPOTENCY_KEY = ${{ steps.xops.outputs.IDEMPOTENCY_KEY }}"
-          echo "ERROR_CODE      = ${{ steps.xops.outputs.ERROR_CODE }}"
+          echo "STATUS          = $STATUS"
+          echo "IDEMPOTENCY_KEY = $IDEMPOTENCY_KEY"
+          echo "ERROR_CODE      = ${ERROR_CODE:-none}"
 
-          case "${{ steps.xops.outputs.STATUS }}" in
+          case "$STATUS" in
             dry-run)      echo "Parsed the command and built the intent. Nothing settled." ;;
             settled)      echo "Payout settled on-chain." ;;
             already-paid) echo "A receipt already exists for this payout. Nothing settled again." ;;
+            skipped)
+              # Somebody mentioned /send in conversation instead of issuing it.
+              # The job filter matches any comment containing the string, while
+              # the parser wants it at the start of a line — deliberately, so a
+              # runner is not burned on every "lgtm". So "we should use /send
+              # here" lands here. Nothing was requested, so nothing failed.
+              echo "No /send command at the start of a line. Nothing to do."
+              ;;
             *)
-              echo "::error::unexpected STATUS '${{ steps.xops.outputs.STATUS }}' (${{ steps.xops.outputs.ERROR_CODE }})"
+              # Not a refusal: those never get here. This means the action
+              # emitted a STATUS this workflow has never heard of.
+              echo "::error::unrecognized STATUS '$STATUS' ($ERROR_CODE) — the output contract changed"
               exit 1
               ;;
           esac
