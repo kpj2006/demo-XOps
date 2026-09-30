@@ -42,7 +42,7 @@ jobs:
     steps:
       - name: Run XOps from the comment
         id: xops
-        uses: kpj2006/XOps-me@test-harness
+        uses: StabilityNexus/GitPay@840365478e41994c3c78a052c2cc8381eb4cff82 # main
         with:
           comment: ${{ github.event.comment.body }}
           actor_association: ${{ github.event.comment.author_association }}
