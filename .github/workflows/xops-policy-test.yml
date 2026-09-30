@@ -31,7 +31,7 @@ jobs:
       - name: Attempt a payout as ${{ inputs.association }}
         id: xops
         continue-on-error: true
-        uses: kpj2006/XOps-me@test-harness
+        uses: StabilityNexus/GitPay@840365478e41994c3c78a052c2cc8381eb4cff82 # main
         with:
           comment: "/send 0x00000000000000000000000000000000CafeBabe 0.01 tUSDC"
           actor_association: ${{ inputs.association }}
