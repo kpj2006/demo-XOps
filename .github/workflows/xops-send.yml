@@ -18,20 +18,6 @@ permissions:
   issues: write
   pull-requests: write
 
-# Repo-wide, deliberately NOT per-PR.
-#
-# Two things need serializing and they have different scopes. The receipt check
-# is check-then-act, which is per-payout. But every payout is signed by the same
-# delegate EOA, and an EOA has one account nonce — two runs signing at once both
-# read nonce N and one transaction is silently dropped. The wider scope covers
-# both.
-#
-# cancel-in-progress stays false: killing a run mid-settlement is exactly how a
-# payout happens without its receipt getting written.
-concurrency:
-  group: xops-payout-${{ github.repository }}
-  cancel-in-progress: false
-
 jobs:
   send:
     # Only PR comments, and only ones that look like a command. The action
@@ -39,6 +25,25 @@ jobs:
     # runner on every "lgtm".
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/send')
     runs-on: ubuntu-latest
+    # Repo-wide, deliberately NOT per-PR.
+    #
+    # Two things need serializing and they have different scopes. The receipt
+    # check is check-then-act, which is per-payout. But every payout is signed by
+    # the same delegate EOA, and an EOA has one account nonce — two runs signing
+    # at once both read nonce N and one transaction is silently dropped. The
+    # wider scope covers both.
+    #
+    # On the job, not the workflow: at workflow level every comment joins the
+    # group before the `if` above filters it, and the default queue keeps only
+    # the newest pending run, so an "lgtm" posted during a payout cancelled any
+    # /send waiting behind it. queue: max keeps every waiting /send.
+    #
+    # cancel-in-progress stays false: killing a run mid-settlement is exactly how
+    # a payout happens without its receipt getting written.
+    concurrency:
+      group: xops-payout-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Run XOps from the comment
         id: xops
